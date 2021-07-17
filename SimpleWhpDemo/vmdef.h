@@ -125,9 +125,8 @@ WHV_REGISTER_VALUE SwInitXcrValueGroup[1] =
 WHV_REGISTER_NAME SwInitFpcsName = WHvX64RegisterFpControlStatus;
 WHV_X64_FP_CONTROL_STATUS_REGISTER SwInitFpcsValue =
 {
-	0x40,0x0,0x5555,0,0,{0}
+	0x40,0x0,0x5555,0x0,0x0,{0}
 };
 
 // Virtual Machine Property
 UINT32 SwProcessorCount = 1;
-WHV_EXTENDED_VM_EXITS SwExtendedVmExits = { 0 };

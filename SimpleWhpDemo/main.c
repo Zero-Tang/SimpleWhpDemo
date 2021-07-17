@@ -24,11 +24,6 @@ HRESULT SwCheckSystemHypervisor()
 	return hr;
 }
 
-void SwDumpVirtualProcessorState(IN UINT32 VpIndex)
-{
-	WHV_REGISTER_VALUE RegVal;
-}
-
 void SwTerminateVirtualMachine()
 {
 	VirtualFree(VirtualMemory, 0, MEM_RELEASE);
@@ -48,13 +43,6 @@ HRESULT SwInitializeVirtualMachine()
 	else
 		goto Cleanup;
 	// Setup Partition Properties.
-	SwExtendedVmExits.X64MsrExit = 1;
-	hr = WHvSetPartitionProperty(hPart, WHvPartitionPropertyCodeExtendedVmExits, &SwExtendedVmExits, sizeof(SwExtendedVmExits));
-	if (hr != S_OK)
-	{
-		printf("Failed to setup Extended VM-Exits! HRESULT=0x%X\n", hr);
-		goto Cleanup;
-	}
 	hr = WHvSetPartitionProperty(hPart, WHvPartitionPropertyCodeProcessorCount, &SwProcessorCount, sizeof(SwProcessorCount));
 	if (hr != S_OK)
 	{
@@ -90,13 +78,13 @@ HRESULT SwInitializeVirtualMachine()
 		printf("Failed to initialize General Purpose Registers! HRESULT=0x%X\n", hr);
 		goto Cleanup;
 	}
-	hr = WHvSetVirtualProcessorRegisters(hPart, 0, SwInitSrNameGroup, 8, SwInitSrValueGroup);
+	hr = WHvSetVirtualProcessorRegisters(hPart, 0, SwInitSrNameGroup, 8, (WHV_REGISTER_VALUE*)SwInitSrValueGroup);
 	if (hr != S_OK)
 	{
 		printf("Failed to initialize Segment Registers! HRESULT=0x%X\n", hr);
 		goto Cleanup;
 	}
-	hr = WHvSetVirtualProcessorRegisters(hPart, 0, SwInitDescriptorNameGroup, 2, SwInitDescriptorValueGroup);
+	hr = WHvSetVirtualProcessorRegisters(hPart, 0, SwInitDescriptorNameGroup, 2, (WHV_REGISTER_VALUE*)SwInitDescriptorValueGroup);
 	if (hr != S_OK)
 	{
 		printf("Failed to initialize Descriptor Tables! HRESULT=0x%X\n", hr);
@@ -120,7 +108,7 @@ HRESULT SwInitializeVirtualMachine()
 		printf("Failed to initialize Extended Control Registers! HRESULT=0x%X\n", hr);
 		goto Cleanup;
 	}
-	hr = WHvSetVirtualProcessorRegisters(hPart, 0, &SwInitFpcsName, 1, &SwInitFpcsValue);
+	hr = WHvSetVirtualProcessorRegisters(hPart, 0, &SwInitFpcsName, 1, (WHV_REGISTER_VALUE*)&SwInitFpcsValue);
 	if (hr != S_OK)
 	{
 		printf("Failed to initialize x87 Floating Point Control Status! HRESULT=0x%X\n", hr);
@@ -173,7 +161,7 @@ HRESULT SwExecuteProgram()
 			{
 				PSTR AccessType[4] = { "Read","Write","Execute","Unknown"};
 				puts("Memory Access Violation occured!");
-				printf("Access Context: GVA=0x%016X GPA=0x%016X\n", ExitContext.MemoryAccess.Gva, ExitContext.MemoryAccess.Gpa);
+				printf("Access Context: GVA=0x%llXX GPA=0x%0llXX\n", ExitContext.MemoryAccess.Gva, ExitContext.MemoryAccess.Gpa);
 				printf("Behavior: %s\t", AccessType[ExitContext.MemoryAccess.AccessInfo.AccessType]);
 				printf("GVA is %s \t", ExitContext.MemoryAccess.AccessInfo.GvaValid ? "Valid" : "Invalid");
 				printf("GPA is %s \n", ExitContext.MemoryAccess.AccessInfo.GpaUnmapped ? "Mapped" : "Unmapped");
