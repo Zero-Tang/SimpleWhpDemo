@@ -122,6 +122,38 @@ Cleanup:
 	return S_FALSE;
 }
 
+HRESULT SwDumpVirtualProcessorGprState()
+{
+	WHV_REGISTER_VALUE RegVal[0x12];
+	HRESULT hr = WHvGetVirtualProcessorRegisters(hPart, 0, SwInitGprNameGroup, 0x12, RegVal);
+	if (hr == S_OK)
+	{
+		puts("============ Dumping General-Purpose Registers ============");
+		puts("Name\t Value");
+		for (UINT32 i = 0; i < 0x12; i++)
+			printf("%s\t 0x%016llX\n", SwGprNameGroup[i], RegVal[i].Reg64);
+		return hr;
+	}
+	printf("Failed to dump General-Purpose Registers! HRESULT=0x%X\n", hr);
+	return hr;
+}
+
+HRESULT SwDumpVirtualProcessorSegmentState()
+{
+	WHV_REGISTER_VALUE RegVal[8];
+	HRESULT hr = WHvGetVirtualProcessorRegisters(hPart, 0, SwInitSrNameGroup, 8, RegVal);
+	if (hr == S_OK)
+	{
+		puts("============ Dumping Segment Registers ============");
+		puts("Name\t Selector\t Attributes\t Limit\t\t Base");
+		for (UINT32 i = 0; i < 8; i++)
+			printf("%s\t 0x%04X\t\t 0x%04X\t\t 0x%08X\t 0x%016llX\n", SwSrNameGroup[i], RegVal[i].Segment.Selector, RegVal[i].Segment.Attributes, RegVal[i].Segment.Limit, RegVal[i].Segment.Base);
+		return hr;
+	}
+	printf("Failed to dump General-Purpose Registers! HRESULT=0x%X\n", hr);
+	return hr;
+}
+
 BOOL LoadVirtualMachineProgram(IN PSTR FileName, IN ULONG Offset)
 {
 	BOOL Result = FALSE;
@@ -140,6 +172,14 @@ BOOL LoadVirtualMachineProgram(IN PSTR FileName, IN ULONG Offset)
 	else
 		printf("Failed to open file! Error Code=%d\n", GetLastError());
 	return Result;
+}
+
+UINT32 SwDosStringLength(IN PSTR String, IN UINT32 MaximumLength)
+{
+	for (UINT32 i = 0; i < MaximumLength; i++)
+		if (String[i] == '\0' || String[i] == '$')
+			return i;
+	return MaximumLength;
 }
 
 HRESULT SwExecuteProgram()
@@ -183,16 +223,20 @@ HRESULT SwExecuteProgram()
 				{
 					if (ExitContext.IoPortAccess.AccessInfo.IsWrite)
 					{
+						INT32 Direction = _bittest64(&ExitContext.VpContext.Rflags, 10) ? -1 : 1;
+						INT32 Increment = ExitContext.IoPortAccess.AccessInfo.AccessSize * Direction;
 						if (ExitContext.IoPortAccess.AccessInfo.StringOp)
 						{
 							UINT64 Gpa = ((UINT64)ExitContext.IoPortAccess.Ds.Selector << 4) + ExitContext.IoPortAccess.Rsi;
 							PSTR StringAddress = (PSTR)((ULONG_PTR)VirtualMemory + Gpa);
 							if (ExitContext.IoPortAccess.AccessInfo.RepPrefix)
-								printf("%.*s", (UINT32)ExitContext.IoPortAccess.Rcx, StringAddress);
+							{
+								printf("%.*s", SwDosStringLength(StringAddress, 1000), StringAddress);
+								RevGprValue[1].Reg64 = 0;
+							}
 							else
 							{
 								putc(*StringAddress, stdout);
-								RevGprValue[2].Reg64 += ExitContext.IoPortAccess.AccessInfo.AccessSize;
 							}
 						}
 						else
@@ -204,12 +248,18 @@ HRESULT SwExecuteProgram()
 				WHvSetVirtualProcessorRegisters(hPart, 0, RevGprName, 4, RevGprValue);
 				break;
 			}
+			case WHvRunVpExitReasonUnrecoverableException:
+				puts("The processor went into shutdown state due to unrecoverable exception!");
+				ContinueExecution = FALSE;
+				break;
 			case WHvRunVpExitReasonInvalidVpRegisterValue:
 				puts("The specified processor state is invalid!");
 				ContinueExecution = FALSE;
 				break;
 			case WHvRunVpExitReasonX64Halt:
 				ContinueExecution = _bittest64(&ExitContext.VpContext.Rflags, 9);
+				break;
+			case WHvRunVpExitReasonException:
 				break;
 			default:
 				printf("Unknown VM-Exit Code=0x%X!\n", ExitContext.ExitReason);
@@ -230,16 +280,18 @@ HRESULT SwExecuteProgram()
 
 int main(int argc, char* argv[], char* envp[])
 {
-	PSTR ProgramFileName = argc >= 2 ? argv[1] : ".\\hello_real.com";
+	PSTR ProgramFileName = argc >= 3 ? argv[2] : "hello.com";
+	PSTR IvtFileName = argc >= 3 ? argv[1] : "ivt.fw";
 	SwCheckSystemHypervisor();
 	if (ExtExitFeat.X64CpuidExit && ExtExitFeat.X64MsrExit)
 	{
 		HRESULT hr = SwInitializeVirtualMachine();
 		if (hr == S_OK)
 		{
-			BOOL LoadResult = LoadVirtualMachineProgram(ProgramFileName, 0x19300);
+			BOOL LoadProgramResult = LoadVirtualMachineProgram(ProgramFileName, 0x10100);
+			BOOL LoadIvtFwResult = LoadVirtualMachineProgram(IvtFileName, 0);
 			puts("Virtual Machine is initialized successfully!");
-			if (LoadResult)
+			if (LoadProgramResult && LoadIvtFwResult)
 			{
 				puts("Program is loaded successfully!");
 				puts("============ Program Start ============");

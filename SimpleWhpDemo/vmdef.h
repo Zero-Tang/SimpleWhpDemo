@@ -41,9 +41,9 @@ WHV_REGISTER_NAME SwInitGprNameGroup[0x12] =
 
 WHV_REGISTER_VALUE SwInitGprValueGroup[0x12] =
 {
-	{0},{0},{0},{0},{0xFFFC},{0},{0},{0},
+	{0},{0},{0},{0},{0xFFF0},{0},{0},{0},
 	{0},{0},{0},{0},{0},{0},{0},{0},
-	{0x100},{0x2}
+	{0x100},{0x202}
 };
 
 WHV_REGISTER_NAME SwInitSrNameGroup[8] =
@@ -60,12 +60,12 @@ WHV_REGISTER_NAME SwInitSrNameGroup[8] =
 
 WHV_X64_SEGMENT_REGISTER SwInitSrValueGroup[8] =
 {
-	{0,0xFFFF,0x1920,{3,1,0,1,0,1,0,0,0}},
-	{0,0xFFFF,0x1920,{11,1,0,1,0,1,0,0,0}},
-	{0,0xFFFF,0x1920,{3,1,0,1,0,1,0,0,0}},
-	{0,0xFFFF,0x1920,{3,1,0,1,0,1,0,0,0}},
-	{0,0xFFFF,0x1920,{3,1,0,1,0,1,0,0,0}},
-	{0,0xFFFF,0x1920,{3,1,0,1,0,1,0,0,0}},
+	{0,0xFFFF,0x1000,{3,1,0,1,0,1,0,0,0}},
+	{0,0xFFFF,0x1000,{11,1,0,1,0,1,0,0,0}},
+	{0,0xFFFF,0x1000,{3,1,0,1,0,1,0,0,0}},
+	{0,0xFFFF,0x1000,{3,1,0,1,0,1,0,0,0}},
+	{0,0xFFFF,0x1000,{3,1,0,1,0,1,0,0,0}},
+	{0,0xFFFF,0x1000,{3,1,0,1,0,1,0,0,0}},
 	{0,0xFFFF,0,{2,0,0,1,0,1,0,0,0}},
 	{0,0xFFFF,0,{3,0,0,1,0,1,0,0,0}}
 };
@@ -126,6 +126,20 @@ WHV_REGISTER_NAME SwInitFpcsName = WHvX64RegisterFpControlStatus;
 WHV_X64_FP_CONTROL_STATUS_REGISTER SwInitFpcsValue =
 {
 	0x40,0x0,0x5555,0x0,0x0,{0}
+};
+
+PSTR SwGprNameGroup[0x12] =
+{
+	"rax","rcx","rdx","rbx","rsp",
+	"rbp","rsi","rdi","r8","r9",
+	"r10","r11","r12","r13",
+	"r14","r15","rip","rflags"
+};
+
+PSTR SwSrNameGroup[8] =
+{
+	"es","cs","ss","ds",
+	"fs","gs","ldtr","tr"
 };
 
 // Virtual Machine Property

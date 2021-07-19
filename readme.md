@@ -16,5 +16,18 @@ Run the following command to build a test case:
 nasm (source assembly file name) -o (output executable file name)
 ```
 
+## Test
+With a minimal analog firmware, SimpleWhpDemo is running a hello world program which is also capable to be running in a real DOS system. (The screenshot demonstrates the comparison to DOSBox)
+![Hello DOS](HelloDOS.png)
+You are required to build the analog firmware as well:
+```bat
+nasm ivt.asm -o ivt.fw
+```
+To run the DOS program:
+```bat
+SimpleWhpDemo ivt.fw hello.com
+```
+
+
 ## License
 This project is licensed under the MSPL License.
