@@ -169,8 +169,6 @@ BOOL LoadVirtualMachineProgram(IN PSTR FileName, IN ULONG Offset)
 		}
 		CloseHandle(hFile);
 	}
-	else
-		printf("Failed to open file! Error Code=%d\n", GetLastError());
 	return Result;
 }
 
@@ -231,7 +229,8 @@ HRESULT SwExecuteProgram()
 							PSTR StringAddress = (PSTR)((ULONG_PTR)VirtualMemory + Gpa);
 							if (ExitContext.IoPortAccess.AccessInfo.RepPrefix)
 							{
-								printf("%.*s", SwDosStringLength(StringAddress, 1000), StringAddress);
+								UINT32 StrLen = SwDosStringLength(StringAddress, 1000);
+								printf("%.*s", StrLen, StringAddress);
 								RevGprValue[1].Reg64 = 0;
 							}
 							else
@@ -280,8 +279,7 @@ HRESULT SwExecuteProgram()
 
 int main(int argc, char* argv[], char* envp[])
 {
-	PSTR ProgramFileName = argc >= 3 ? argv[2] : "hello.com";
-	PSTR IvtFileName = argc >= 3 ? argv[1] : "ivt.fw";
+	PSTR ProgramFileName = argc >= 2 ? argv[1] : "hello.com";
 	SwCheckSystemHypervisor();
 	if (ExtExitFeat.X64CpuidExit && ExtExitFeat.X64MsrExit)
 	{
@@ -289,15 +287,19 @@ int main(int argc, char* argv[], char* envp[])
 		if (hr == S_OK)
 		{
 			BOOL LoadProgramResult = LoadVirtualMachineProgram(ProgramFileName, 0x10100);
-			BOOL LoadIvtFwResult = LoadVirtualMachineProgram(IvtFileName, 0);
+			BOOL LoadIvtFwResult = LoadVirtualMachineProgram("ivt.fw", 0);
 			puts("Virtual Machine is initialized successfully!");
-			if (LoadProgramResult && LoadIvtFwResult)
+			if (LoadProgramResult)
 			{
 				puts("Program is loaded successfully!");
+				if (!LoadIvtFwResult)
+					puts("Warning: Firmware is not loaded successfully. Your program might not function properly if it invokes BIOS interrupts.");
 				puts("============ Program Start ============");
 				SwExecuteProgram();
 				puts("============= Program End =============");
 			}
+			else
+				puts("Failed to load the program!");
 			SwTerminateVirtualMachine();
 		}
 	}
