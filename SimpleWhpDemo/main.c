@@ -185,7 +185,6 @@ HRESULT SwExecuteProgram()
 	WHV_RUN_VP_EXIT_CONTEXT ExitContext = { 0 };
 	BOOL ContinueExecution = TRUE;
 	HRESULT hr = S_FALSE;
-	ULONG64 PrintAddr = 0;
 	while (ContinueExecution)
 	{
 		hr = WHvRunVirtualProcessor(hPart, 0, &ExitContext, sizeof(ExitContext));
@@ -199,10 +198,10 @@ HRESULT SwExecuteProgram()
 			{
 				PSTR AccessType[4] = { "Read","Write","Execute","Unknown"};
 				puts("Memory Access Violation occured!");
-				printf("Access Context: GVA=0x%llXX GPA=0x%0llXX\n", ExitContext.MemoryAccess.Gva, ExitContext.MemoryAccess.Gpa);
+				printf("Access Context: GVA=0x%llX GPA=0x%0llX\n", ExitContext.MemoryAccess.Gva, ExitContext.MemoryAccess.Gpa);
 				printf("Behavior: %s\t", AccessType[ExitContext.MemoryAccess.AccessInfo.AccessType]);
 				printf("GVA is %s \t", ExitContext.MemoryAccess.AccessInfo.GvaValid ? "Valid" : "Invalid");
-				printf("GPA is %s \n", ExitContext.MemoryAccess.AccessInfo.GpaUnmapped ? "Mapped" : "Unmapped");
+				printf("GPA is %s \n", ExitContext.MemoryAccess.AccessInfo.GpaUnmapped ? "Unmapped" : "Mapped");
 				printf("Number of Instruction Bytes: %d\n Instruction Bytes: ", ExitContext.MemoryAccess.InstructionByteCount);
 				for (UINT8 i = 0; i < ExitContext.MemoryAccess.InstructionByteCount; i++)
 					printf("%02X ", ExitContext.MemoryAccess.InstructionBytes[i]);
@@ -257,8 +256,6 @@ HRESULT SwExecuteProgram()
 				break;
 			case WHvRunVpExitReasonX64Halt:
 				ContinueExecution = _bittest64(&ExitContext.VpContext.Rflags, 9);
-				break;
-			case WHvRunVpExitReasonException:
 				break;
 			default:
 				printf("Unknown VM-Exit Code=0x%X!\n", ExitContext.ExitReason);

@@ -11,4 +11,4 @@ start:
 
 segment .data
 hello_str:
-db "Hello Real-Mode Programming!",10,'$',0 
+db "Hello World in DOS!",10,'$',0 
