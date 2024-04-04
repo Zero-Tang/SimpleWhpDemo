@@ -1,7 +1,6 @@
 bits 16
 org 0x100
 
-segment .text
 start:
     mov dx,hello_str
     mov ah,9
@@ -9,6 +8,5 @@ start:
     xor ah,ah
     int 0x21
 
-segment .data
 hello_str:
 db "Hello World in DOS!",10,'$',0 

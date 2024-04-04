@@ -290,6 +290,8 @@ virt_int21_handler:
 
 int21_print_string_stdout:
 	mov si,dx
+	call strlen
+	mov cx,dx
 	mov dx,str_prt_port
 	rep outsb
 	iret
@@ -382,4 +384,6 @@ strlen:
 	inc dx
 	loop @1
 @2:
+	sub si,dx
+	dec si
 	ret

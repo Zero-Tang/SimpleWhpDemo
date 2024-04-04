@@ -14,22 +14,27 @@ Since this project relies on Microsoft Hypervisor, you will have to Install WHP 
 Please note that even if Device Guard is running, this program cannot run without WHP.
 
 ## Build
-To build this project, you are required to install [VS2019](https://visualstudio.microsoft.com/) and [Windows SDK](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk/).
+To build this project, you are required to install [VS2022](https://visualstudio.microsoft.com/) and [Windows SDK](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk/).
 
 To build test cases, you are required to install [NASM](https://nasm.us/). \
 Run the following command to build a test case:
 ```bat
-nasm (source assembly file name) -o (output executable file name)
+nasm (source assembly file name) -o (output executable file name) -l (output listing file)
 ```
+
+Note that the listing file could serve as the means of disassembly of the program. You will find it very helpful to debug your program.
 
 ## Firmware
 A legacy x86 computer system would load firmware data from its NVRAM (Non-Volatile RAM). The firmware would provide some functions to the bootloaders to invoke. \
 This demo project has implemented a minimal firmware with an IVT (Interrupt Vector Table) and certain interrupt handlers to output string and terminate the program. \
 To build the firmware, go to the test cases directory and execute:
 ```bat
-nasm ivt.asm -o ivt.fw
+nasm ivt.asm -o ivt.fw -l ivt.lst
 ```
-Place the firmware file in the same directory with the hypervisor program to run .
+Place the firmware file (`ivt.fw`) in the same directory with the hypervisor program to run.
+
+## Emulator API
+I noticed WHP also provides a set of [Emulator API](https://learn.microsoft.com/en-us/virtualization/api/hypervisor-instruction-emulator/hypervisor-instruction-emulator). Please note that the Emulator API aims to further decode the Port I/O and Memory-Mapped I/O so that we wont have to grab the data on our own. This significantly reduces our effort to transfer data between our emulated peripherals and the vCPU.
 
 ## Personal Comments
 The [official reference to WHP APIs](https://docs.microsoft.com/en-us/virtualization/api/hypervisor-platform/hypervisor-platform) provided by Microsoft is not well documented. Also, the functionality of WHP, at least from my experience on Windows 10 x64 LTSC 2019 (version 1809, Build 17763), is so scarce that I have to use I/O instructions for hypercalls. What's even worse is that WHP in LTSC does not even support exception interceptions! This means I can't debug the guest in hypervisor level. I thereby conjecture such lack of functionalities is why VMware Workstation requires Windows 10 x64 2004 to run alongside with Hyper-V.

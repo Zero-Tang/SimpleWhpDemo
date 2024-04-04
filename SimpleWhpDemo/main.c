@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <Windows.h>
 #include <WinHvPlatform.h>
+#include <WinHvEmulation.h>
 #include "vmdef.h"
 
 HRESULT SwCheckSystemHypervisor()
@@ -29,15 +30,23 @@ void SwTerminateVirtualMachine()
 	VirtualFree(VirtualMemory, 0, MEM_RELEASE);
 	WHvDeleteVirtualProcessor(hPart, 0);
 	WHvDeletePartition(hPart);
+	WHvEmulatorDestroyEmulator(hEmu);
 }
 
 HRESULT SwInitializeVirtualMachine()
 {
+	BOOL EmulatorCreated = FALSE;
 	BOOL PartitionCreated = FALSE;
 	BOOL VcpuCreated = FALSE;
 	BOOL MemoryAllocated = FALSE;
+	// Create an emulator.
+	HRESULT hr = WHvEmulatorCreateEmulator(&EmuCallbacks, &hEmu);
+	if (hr == S_OK)
+		EmulatorCreated = TRUE;
+	else
+		goto Cleanup;
 	// Create a virtual machine.
-	HRESULT hr = WHvCreatePartition(&hPart);
+	hr = WHvCreatePartition(&hPart);
 	if (hr == S_OK)
 		PartitionCreated = TRUE;
 	else
@@ -119,6 +128,7 @@ Cleanup:
 	if (MemoryAllocated)VirtualFree(VirtualMemory, 0, MEM_RELEASE);
 	if (VcpuCreated)WHvDeleteVirtualProcessor(hPart, 0);
 	if (PartitionCreated)WHvDeletePartition(hPart);
+	if (EmulatorCreated)WHvEmulatorDestroyEmulator(hEmu);
 	return S_FALSE;
 }
 
@@ -180,6 +190,63 @@ UINT32 SwDosStringLength(IN PSTR String, IN UINT32 MaximumLength)
 	return MaximumLength;
 }
 
+HRESULT SwEmulatorIoCallback(IN PVOID Context, IN OUT WHV_EMULATOR_IO_ACCESS_INFO* IoAccess)
+{
+	if (IoAccess->AccessSize != 1)
+	{
+		printf("Only size of 1 operand is allowed! Access Size is %u bytes.\n", IoAccess->AccessSize);
+		return E_NOTIMPL;
+	}
+	if (IoAccess->Direction == 0)
+	{
+		puts("Input is not implemented!");
+		return E_NOTIMPL;
+	}
+	if (IoAccess->Port == IO_PORT_STRING_PRINT)
+	{
+		putc(IoAccess->Data, stdout);
+		return S_OK;
+	}
+	else
+	{
+		printf("Unknown I/O Port: 0x%04X is accessed!\n", IoAccess->Port);
+		return E_NOTIMPL;
+	}
+}
+
+HRESULT SwEmulatorMmioCallback(IN PVOID Context, IN OUT WHV_EMULATOR_MEMORY_ACCESS_INFO* MemoryAccess)
+{
+	PVOID HvaAddress = (PVOID)((ULONG_PTR)VirtualMemory + MemoryAccess->GpaAddress);
+	if(MemoryAccess->GpaAddress+MemoryAccess->AccessSize>=GuestMemorySize)
+	{
+		printf("Memory-Access Overflow is detected! GPA=0x%016llX, Access-Size=%u bytes\n", MemoryAccess->GpaAddress, MemoryAccess->AccessSize);
+		return E_FAIL;
+	}
+	if (MemoryAccess->Direction)
+		RtlCopyMemory(HvaAddress, MemoryAccess->Data, MemoryAccess->AccessSize);
+	else
+		RtlCopyMemory(MemoryAccess->Data, HvaAddress, MemoryAccess->AccessSize);
+	return S_OK;
+}
+
+HRESULT SwEmulatorGetVirtualRegistersCallback(IN PVOID Context, IN CONST WHV_REGISTER_NAME* RegisterNames, IN UINT32 RegisterCount, OUT WHV_REGISTER_VALUE* RegisterValues)
+{
+	return WHvGetVirtualProcessorRegisters(hPart, 0, RegisterNames, RegisterCount, RegisterValues);
+}
+
+HRESULT SwEmulatorSetVirtualRegistersCallback(IN PVOID Context, IN CONST WHV_REGISTER_NAME* RegisterNames, IN UINT32 RegisterCount, IN CONST WHV_REGISTER_VALUE* RegisterValues)
+{
+	return WHvSetVirtualProcessorRegisters(hPart, 0, RegisterNames, RegisterCount, RegisterValues);
+}
+
+HRESULT SwEmulatorTranslateGvaPageCallback(IN PVOID Context, IN WHV_GUEST_VIRTUAL_ADDRESS GvaPage, IN WHV_TRANSLATE_GVA_FLAGS TranslateFlags, OUT WHV_TRANSLATE_GVA_RESULT_CODE* TranslationResult, OUT WHV_GUEST_PHYSICAL_ADDRESS* GpaPage)
+{
+	WHV_TRANSLATE_GVA_RESULT Result;
+	HRESULT hr = WHvTranslateGva(hPart, 0, GvaPage, TranslateFlags, &Result, GpaPage);
+	*TranslationResult = Result.ResultCode;
+	return hr;
+}
+
 HRESULT SwExecuteProgram()
 {
 	WHV_RUN_VP_EXIT_CONTEXT ExitContext = { 0 };
@@ -205,45 +272,18 @@ HRESULT SwExecuteProgram()
 				printf("Number of Instruction Bytes: %d\n Instruction Bytes: ", ExitContext.MemoryAccess.InstructionByteCount);
 				for (UINT8 i = 0; i < ExitContext.MemoryAccess.InstructionByteCount; i++)
 					printf("%02X ", ExitContext.MemoryAccess.InstructionBytes[i]);
+				SwDumpVirtualProcessorGprState();
+				SwDumpVirtualProcessorSegmentState();
 				ContinueExecution = FALSE;
 				break;
 			}
 			case WHvRunVpExitReasonX64IoPortAccess:
 			{
-				WHV_REGISTER_NAME RevGprName[4] = { WHvX64RegisterRax,WHvX64RegisterRcx,WHvX64RegisterRsi,WHvX64RegisterRdi };
-				WHV_REGISTER_VALUE RevGprValue[4];
-				RevGprValue[0].Reg64 = ExitContext.IoPortAccess.Rax;
-				RevGprValue[1].Reg64 = ExitContext.IoPortAccess.Rcx;
-				RevGprValue[2].Reg64 = ExitContext.IoPortAccess.Rsi;
-				RevGprValue[3].Reg64 = ExitContext.IoPortAccess.Rdi;
-				if (ExitContext.IoPortAccess.PortNumber == IO_PORT_STRING_PRINT)
-				{
-					if (ExitContext.IoPortAccess.AccessInfo.IsWrite)
-					{
-						INT32 Direction = _bittest64(&ExitContext.VpContext.Rflags, 10) ? -1 : 1;
-						INT32 Increment = ExitContext.IoPortAccess.AccessInfo.AccessSize * Direction;
-						if (ExitContext.IoPortAccess.AccessInfo.StringOp)
-						{
-							UINT64 Gpa = ((UINT64)ExitContext.IoPortAccess.Ds.Selector << 4) + ExitContext.IoPortAccess.Rsi;
-							PSTR StringAddress = (PSTR)((ULONG_PTR)VirtualMemory + Gpa);
-							if (ExitContext.IoPortAccess.AccessInfo.RepPrefix)
-							{
-								UINT32 StrLen = SwDosStringLength(StringAddress, 1000);
-								printf("%.*s", StrLen, StringAddress);
-								RevGprValue[1].Reg64 = 0;
-							}
-							else
-							{
-								putc(*StringAddress, stdout);
-							}
-						}
-						else
-						{
-							putc((UINT8)ExitContext.IoPortAccess.Rax, stdout);
-						}
-					}
-				}
-				WHvSetVirtualProcessorRegisters(hPart, 0, RevGprName, 4, RevGprValue);
+				WHV_EMULATOR_STATUS EmuSt;
+				hr = WHvEmulatorTryIoEmulation(hEmu, NULL, &ExitContext.VpContext, &ExitContext.IoPortAccess, &EmuSt);
+				if (FAILED(hr))
+					printf("Failed to emulate I/O instruction! HRESULT=0x%08X, Emulation Status=0x%08X\n", hr, EmuSt.AsUINT32);
+				// Emulator will advance rip for us. No need to advanced rip from here.
 				break;
 			}
 			case WHvRunVpExitReasonUnrecoverableException:
@@ -256,14 +296,14 @@ HRESULT SwExecuteProgram()
 				break;
 			case WHvRunVpExitReasonX64Halt:
 				ContinueExecution = _bittest64(&ExitContext.VpContext.Rflags, 9);
+				Rip.Reg64 += ExitContext.VpContext.InstructionLength;
+				hr = WHvSetVirtualProcessorRegisters(hPart, 0, &RipName, 1, &Rip);
 				break;
 			default:
 				printf("Unknown VM-Exit Code=0x%X!\n", ExitContext.ExitReason);
 				ContinueExecution = FALSE;
 				break;
 			}
-			Rip.Reg64 += ExitContext.VpContext.InstructionLength;
-			hr = WHvSetVirtualProcessorRegisters(hPart, 0, &RipName, 1, &Rip);
 		}
 		else
 		{

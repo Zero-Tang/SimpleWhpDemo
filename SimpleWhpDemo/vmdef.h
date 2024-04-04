@@ -13,8 +13,26 @@ WHV_PROCESSOR_FEATURES ProcFeat;
 WHV_PROCESSOR_XSAVE_FEATURES XsaveFeat;
 
 // Virtual Machine Definitions.
+WHV_EMULATOR_HANDLE hEmu;
 WHV_PARTITION_HANDLE hPart;
 PVOID VirtualMemory = NULL;
+
+// Emulator
+HRESULT SwEmulatorIoCallback(IN PVOID Context, IN OUT WHV_EMULATOR_IO_ACCESS_INFO* IoAccess);
+HRESULT SwEmulatorMmioCallback(IN PVOID Context, IN OUT WHV_EMULATOR_MEMORY_ACCESS_INFO* MemoryAccess);
+HRESULT SwEmulatorGetVirtualRegistersCallback(IN PVOID Context, IN CONST WHV_REGISTER_NAME* RegisterNames, IN UINT32 RegisterCount, OUT WHV_REGISTER_VALUE* RegisterValues);
+HRESULT SwEmulatorSetVirtualRegistersCallback(IN PVOID Context, IN CONST WHV_REGISTER_NAME* RegisterNames, IN UINT32 RegisterCount, IN CONST WHV_REGISTER_VALUE* RegisterValues);
+HRESULT SwEmulatorTranslateGvaPageCallback(IN PVOID Context, IN WHV_GUEST_VIRTUAL_ADDRESS GvaPage, IN WHV_TRANSLATE_GVA_FLAGS TranslateFlags, OUT WHV_TRANSLATE_GVA_RESULT_CODE* TranslationResult, OUT WHV_GUEST_PHYSICAL_ADDRESS* GpaPage);
+WHV_EMULATOR_CALLBACKS EmuCallbacks =
+{
+	sizeof(WHV_EMULATOR_CALLBACKS),
+	0,
+	SwEmulatorIoCallback,
+	SwEmulatorMmioCallback,
+	SwEmulatorGetVirtualRegistersCallback,
+	SwEmulatorSetVirtualRegistersCallback,
+	SwEmulatorTranslateGvaPageCallback
+};
 
 // Virtual Processor Initial State.
 WHV_REGISTER_NAME SwInitGprNameGroup[0x12] =
@@ -43,7 +61,7 @@ WHV_REGISTER_VALUE SwInitGprValueGroup[0x12] =
 {
 	{0},{0},{0},{0},{0xFFF0},{0},{0},{0},
 	{0},{0},{0},{0},{0},{0},{0},{0},
-	{0x100},{0x202}
+	{0x100},{0x2}
 };
 
 WHV_REGISTER_NAME SwInitSrNameGroup[8] =
@@ -60,12 +78,12 @@ WHV_REGISTER_NAME SwInitSrNameGroup[8] =
 
 WHV_X64_SEGMENT_REGISTER SwInitSrValueGroup[8] =
 {
-	{0,0xFFFF,0x1000,{3,1,0,1,0,1,0,0,0}},
-	{0,0xFFFF,0x1000,{11,1,0,1,0,1,0,0,0}},
-	{0,0xFFFF,0x1000,{3,1,0,1,0,1,0,0,0}},
-	{0,0xFFFF,0x1000,{3,1,0,1,0,1,0,0,0}},
-	{0,0xFFFF,0x1000,{3,1,0,1,0,1,0,0,0}},
-	{0,0xFFFF,0x1000,{3,1,0,1,0,1,0,0,0}},
+	{0x10000,0xFFFFFFFF,0x1000,{3,1,0,1,0,1,0,0,0}},
+	{0x10000,0xFFFFFFFF,0x1000,{11,1,0,1,0,1,0,0,0}},
+	{0x10000,0xFFFFFFFF,0x1000,{3,1,0,1,0,1,0,0,0}},
+	{0x10000,0xFFFFFFFF,0x1000,{3,1,0,1,0,1,0,0,0}},
+	{0x10000,0xFFFFFFFF,0x1000,{3,1,0,1,0,1,0,0,0}},
+	{0x10000,0xFFFFFFFF,0x1000,{3,1,0,1,0,1,0,0,0}},
 	{0,0xFFFF,0,{2,0,0,1,0,1,0,0,0}},
 	{0,0xFFFF,0,{3,0,0,1,0,1,0,0,0}}
 };

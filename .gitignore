@@ -365,3 +365,5 @@ FodyWeavers.xsd
 # Test Program
 *.com
 *.fw
+*.lst
+*.exe
