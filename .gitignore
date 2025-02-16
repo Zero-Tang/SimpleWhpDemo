@@ -367,3 +367,7 @@ FodyWeavers.xsd
 *.fw
 *.lst
 *.exe
+
+# Added by cargo
+
+/target

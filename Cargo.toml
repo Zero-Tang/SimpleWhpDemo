@@ -1,0 +1,11 @@
+[package]
+name = "simple-whp-demo"
+version = "1.1.0"
+edition = "2024"
+
+[dependencies]
+aligned = "0.4.2"
+
+[dependencies.windows]
+version = "0.59.0"
+features = ["Win32_System_Hypervisor","Win32_System_Memory","Win32_Storage_FileSystem","Win32_Security","Win32_System_IO"]
