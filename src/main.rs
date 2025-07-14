@@ -81,12 +81,12 @@ const INITIAL_VCPU_REGISTER_VALUES:Aligned<A16,[WHV_REGISTER_VALUE;INITIAL_VCPU_
 		WHV_REGISTER_VALUE{Reg64:0},
 		WHV_REGISTER_VALUE{Reg64:0x100},
 		WHV_REGISTER_VALUE{Reg64:0x2},
-		WHV_REGISTER_VALUE{Segment:WHV_X64_SEGMENT_REGISTER{Base:0x10000,Limit:0xFFFFFFFF,Selector:0x1000,Anonymous:WHV_X64_SEGMENT_REGISTER_0{Attributes:0x93}}},
-		WHV_REGISTER_VALUE{Segment:WHV_X64_SEGMENT_REGISTER{Base:0x10000,Limit:0xFFFFFFFF,Selector:0x1000,Anonymous:WHV_X64_SEGMENT_REGISTER_0{Attributes:0x9B}}},
-		WHV_REGISTER_VALUE{Segment:WHV_X64_SEGMENT_REGISTER{Base:0x10000,Limit:0xFFFFFFFF,Selector:0x1000,Anonymous:WHV_X64_SEGMENT_REGISTER_0{Attributes:0x93}}},
-		WHV_REGISTER_VALUE{Segment:WHV_X64_SEGMENT_REGISTER{Base:0x10000,Limit:0xFFFFFFFF,Selector:0x1000,Anonymous:WHV_X64_SEGMENT_REGISTER_0{Attributes:0x93}}},
-		WHV_REGISTER_VALUE{Segment:WHV_X64_SEGMENT_REGISTER{Base:0x10000,Limit:0xFFFFFFFF,Selector:0x1000,Anonymous:WHV_X64_SEGMENT_REGISTER_0{Attributes:0x93}}},
-		WHV_REGISTER_VALUE{Segment:WHV_X64_SEGMENT_REGISTER{Base:0x10000,Limit:0xFFFFFFFF,Selector:0x1000,Anonymous:WHV_X64_SEGMENT_REGISTER_0{Attributes:0x93}}},
+		WHV_REGISTER_VALUE{Segment:WHV_X64_SEGMENT_REGISTER{Base:0x10000,Limit:0xFFFF,Selector:0x1000,Anonymous:WHV_X64_SEGMENT_REGISTER_0{Attributes:0x93}}},
+		WHV_REGISTER_VALUE{Segment:WHV_X64_SEGMENT_REGISTER{Base:0x10000,Limit:0xFFFF,Selector:0x1000,Anonymous:WHV_X64_SEGMENT_REGISTER_0{Attributes:0x9B}}},
+		WHV_REGISTER_VALUE{Segment:WHV_X64_SEGMENT_REGISTER{Base:0x10000,Limit:0xFFFF,Selector:0x1000,Anonymous:WHV_X64_SEGMENT_REGISTER_0{Attributes:0x93}}},
+		WHV_REGISTER_VALUE{Segment:WHV_X64_SEGMENT_REGISTER{Base:0x10000,Limit:0xFFFF,Selector:0x1000,Anonymous:WHV_X64_SEGMENT_REGISTER_0{Attributes:0x93}}},
+		WHV_REGISTER_VALUE{Segment:WHV_X64_SEGMENT_REGISTER{Base:0x10000,Limit:0xFFFF,Selector:0x1000,Anonymous:WHV_X64_SEGMENT_REGISTER_0{Attributes:0x93}}},
+		WHV_REGISTER_VALUE{Segment:WHV_X64_SEGMENT_REGISTER{Base:0x10000,Limit:0xFFFF,Selector:0x1000,Anonymous:WHV_X64_SEGMENT_REGISTER_0{Attributes:0x93}}},
 		WHV_REGISTER_VALUE{Segment:WHV_X64_SEGMENT_REGISTER{Base:0,Limit:0xFFFF,Selector:0,Anonymous:WHV_X64_SEGMENT_REGISTER_0{Attributes:0x82}}},
 		WHV_REGISTER_VALUE{Segment:WHV_X64_SEGMENT_REGISTER{Base:0,Limit:0xFFFF,Selector:0,Anonymous:WHV_X64_SEGMENT_REGISTER_0{Attributes:0x83}}},
 		WHV_REGISTER_VALUE{Table:WHV_X64_TABLE_REGISTER{Base:0,Pad:[0;3],Limit:0xFFFF}},
@@ -311,12 +311,12 @@ unsafe extern "system" fn emu_memory_callback(context:*const c_void,memory_acces
 			if (*memory_access).Direction!=0
 			{
 				let vmem:&mut [u8]=slice::from_raw_parts_mut(hva,len);
-				vmem.copy_from_slice(&(*memory_access).Data[0..len]);
+				vmem.copy_from_slice(&(&(*memory_access).Data)[0..len]);
 			}
 			else
 			{
 				let vmem:&[u8]=slice::from_raw_parts(hva,len);
-				(*memory_access).Data[0..len].copy_from_slice(vmem);
+				(&mut (*memory_access).Data)[0..len].copy_from_slice(vmem);
 			}
 			S_OK
 		}
@@ -375,7 +375,8 @@ unsafe extern "system" fn emu_translate_gva_callback(context:*const c_void,gva_p
 fn init_whpx()->HRESULT
 {
 	let mut hv_present:WHV_CAPABILITY=WHV_CAPABILITY::default();
-	match unsafe{WHvGetCapability(WHvCapabilityCodeHypervisorPresent,(&raw mut hv_present).cast(),size_of::<WHV_CAPABILITY>() as u32,None)}
+	let r=unsafe{WHvGetCapability(WHvCapabilityCodeHypervisorPresent,(&raw mut hv_present).cast(),size_of::<WHV_CAPABILITY>() as u32,None)};
+	match r
 	{
 		Ok(_)=>
 		{

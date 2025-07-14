@@ -76,16 +76,16 @@ WHV_REGISTER_NAME SwInitSrNameGroup[8] =
 	WHvX64RegisterTr
 };
 
-WHV_X64_SEGMENT_REGISTER SwInitSrValueGroup[8] =
+WHV_REGISTER_VALUE SwInitSrValueGroup[8] =
 {
-	{0x10000,0xFFFFFFFF,0x1000,{3,1,0,1,0,1,0,0,0}},
-	{0x10000,0xFFFFFFFF,0x1000,{11,1,0,1,0,1,0,0,0}},
-	{0x10000,0xFFFFFFFF,0x1000,{3,1,0,1,0,1,0,0,0}},
-	{0x10000,0xFFFFFFFF,0x1000,{3,1,0,1,0,1,0,0,0}},
-	{0x10000,0xFFFFFFFF,0x1000,{3,1,0,1,0,1,0,0,0}},
-	{0x10000,0xFFFFFFFF,0x1000,{3,1,0,1,0,1,0,0,0}},
-	{0,0xFFFF,0,{2,0,0,1,0,1,0,0,0}},
-	{0,0xFFFF,0,{3,0,0,1,0,1,0,0,0}}
+	{.Segment = {0x10000,0xFFFF,0x1000,{3,1,0,1,0,1,0,0,0}}},
+	{.Segment = {0x10000,0xFFFF,0x1000,{11,1,0,1,0,1,0,0,0}}},
+	{.Segment = {0x10000,0xFFFF,0x1000,{3,1,0,1,0,1,0,0,0}}},
+	{.Segment = {0x10000,0xFFFF,0x1000,{3,1,0,1,0,1,0,0,0}}},
+	{.Segment = {0x10000,0xFFFF,0x1000,{3,1,0,1,0,1,0,0,0}}},
+	{.Segment = {0x10000,0xFFFF,0x1000,{3,1,0,1,0,1,0,0,0}}},
+	{.Segment = {0,0xFFFF,0,{2,0,0,1,0,1,0,0,0}}},
+	{.Segment = {0,0xFFFF,0,{3,0,0,1,0,1,0,0,0}}}
 };
 
 WHV_REGISTER_NAME SwInitDescriptorNameGroup[2] =
@@ -94,10 +94,10 @@ WHV_REGISTER_NAME SwInitDescriptorNameGroup[2] =
 	WHvX64RegisterGdtr
 };
 
-WHV_X64_TABLE_REGISTER SwInitDescriptorValueGroup[2] =
+WHV_REGISTER_VALUE SwInitDescriptorValueGroup[2] =
 {
-	{{0,0,0},0xFFFF,0},
-	{{0,0,0},0xFFFF,0}
+	{.Table = {{0,0,0},0xFFFF,0}},
+	{.Table = {{0,0,0},0xFFFF,0}}
 };
 
 WHV_REGISTER_NAME SwInitCrNameGroup[4] =
@@ -141,9 +141,9 @@ WHV_REGISTER_VALUE SwInitXcrValueGroup[1] =
 };
 
 WHV_REGISTER_NAME SwInitFpcsName = WHvX64RegisterFpControlStatus;
-WHV_X64_FP_CONTROL_STATUS_REGISTER SwInitFpcsValue =
+WHV_REGISTER_VALUE SwInitFpcsValue =
 {
-	0x40,0x0,0x5555,0x0,0x0,{0}
+	.FpControlStatus = {0x40,0x0,0x5555,0x0,0x0,{0}}
 };
 
 PSTR SwGprNameGroup[0x12] =
